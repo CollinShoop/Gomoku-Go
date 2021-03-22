@@ -2,7 +2,7 @@ package board
 
 import "fmt"
 
-var pieceMapping [3]string = [3]string{".", "1", "2"}
+var pieceMapping = [3]string{".", "1", "2"}
 
 type board struct {
 	Rows, Cols                               int
@@ -31,33 +31,39 @@ func (b *board) Pieces() []int {
 // Get which player has a piece in a given position
 // It returns a number, -1 for INVALID, 0 for NONE, 1 for PLAYER 1 and 2 for PLAYER 2
 func (b *board) Get(col, row int) int {
-	if col < 0 || row < 0 || col > b.Cols || row > b.Rows {
+	if col < 0 || row < 0 || col >= b.Cols || row >= b.Rows {
 		return -1 // panic?
 	}
 	return b.pieces[row*b.Cols+col]
 }
 
-func (b *board) IsOver() bool {
+// IsOver returns a pair of values. The first indicates whether or not the game is over. The second value
+// indicates the most recent player to have moved (ex player 1 or 2). If the game is over, this is also the winner.
+func (b *board) IsOver() (bool, int) {
 	if b.isOverCached {
-		return true
+		return true, b.lastMovePlayer
 	}
 	if b.lastMovePlayer == -1 {
 		fmt.Printf("isOver: player=%d\n", b.lastMovePlayer)
-		return false
+		return false, b.lastMovePlayer
 	}
 	lineCount := b.maxLineCount(b.lastMovePlayer, b.lastMoveCol, b.lastMoveRow)
 	// according to rules of Standard Gomoku, "overline" eg 6+ is illegal and does not count
 	// for Freestyle, it's allowed.
 	b.isOverCached = lineCount >= 5
 	fmt.Printf("isOver: player=%d; lineCount=%d; isOver=%v\n", b.lastMovePlayer, lineCount, b.isOverCached)
-	return b.isOverCached
+	return b.isOverCached, b.lastMovePlayer
 }
 
 func (b *board) Move(player, col, row int) {
-	if col < 0 || row < 0 || col > b.Cols || row > b.Rows {
+	if col < 0 || row < 0 || col >= b.Cols || row >= b.Rows {
 		return // panic?
 	}
 	if player < 0 || player > 2 {
+		return // panic?
+	}
+	isOver, _ := b.IsOver()
+	if isOver {
 		return // panic?
 	}
 
@@ -181,29 +187,33 @@ func (b *board) directionalFlipCheck(player, col, row, dcol, drow int) {
 	}
 }
 
-func (b *board) Print() {
-	fmt.Print("    ")
+func (b *board) ToStr() string {
+	toStr := ""
+	toStr += fmt.Sprint("    ")
 	for i := 0; i < b.Cols; i++ {
-		fmt.Printf(" %X ", i)
+		toStr += fmt.Sprintf(" %X ", i)
 	}
-	fmt.Print("  \n    ")
+	toStr += fmt.Sprint("  \n    ")
 	for i := 0; i < b.Cols; i++ {
-		fmt.Print("___")
+		toStr += fmt.Sprint("___")
 	}
 	for i := 0; i < b.Cols*b.Rows; i++ {
 		p := b.pieces[i]
 		if i%b.Cols == 0 {
 			if i > 0 {
-				fmt.Print("│")
+				toStr += fmt.Sprint("│")
 			}
-			fmt.Printf("\n%X  │", (i / b.Cols))
+			toStr += fmt.Sprintf("\n%X  │", i/b.Cols)
 		}
-		fmt.Printf(" %s ", pieceMapping[p])
+		toStr += fmt.Sprintf(" %s ", pieceMapping[p])
 	}
-
-	fmt.Print("|\n    ")
+	toStr += fmt.Sprint("|\n    ")
 	for i := 0; i < b.Cols; i++ {
-		fmt.Print("‾‾‾")
+		toStr += fmt.Sprint("‾‾‾")
 	}
-	fmt.Println()
+	return toStr
+}
+
+func (b *board) Print() {
+	fmt.Println(b.ToStr())
 }
